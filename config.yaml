@@ -1,0 +1,72 @@
+# BugWatch OpenTelemetry Collector distribution — config.yaml
+#
+# A ready-to-run otelcol-contrib config that receives OTLP from your apps and
+# forwards logs + traces + metrics to BugWatch's OTLP-compatible endpoints
+# (proven in Slices 1/3/4: POST /v1/logs, /v1/traces, /v1/metrics over HTTP+gRPC).
+#
+# Env vars (see docker-compose.yml / .env):
+#   BUGWATCH_HTTP   e.g. https://api.newinstance.cloud  (or http://localhost:5050 in dev)
+#   BUGWATCH_GRPC   e.g. api.newinstance.cloud:4317     (or localhost:4317 in dev)
+#   BUGWATCH_API_KEY  your central key  "<keyId>:<secret>"  (sk_live_… / sk_test_…)
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 512
+    spike_limit_mib: 128
+  batch:
+    send_batch_size: 512
+    timeout: 5s
+  # Stamp a resource attribute so BugWatch can attribute telemetry to a deployment.
+  resource:
+    attributes:
+      - key: collector
+        value: bugwatch-otel-collector
+        action: upsert
+
+exporters:
+  # OTLP/HTTP → BugWatch (recommended; one auth header, works through ALBs).
+  otlphttp/bugwatch:
+    logs_endpoint: ${env:BUGWATCH_HTTP}/v1/logs
+    traces_endpoint: ${env:BUGWATCH_HTTP}/v1/traces
+    metrics_endpoint: ${env:BUGWATCH_HTTP}/v1/metrics
+    headers:
+      x-api-key: ${env:BUGWATCH_API_KEY}
+    compression: gzip
+
+  # OTLP/gRPC → BugWatch (alternative; uses the :4317 receiver proven in Slice 1).
+  # otlp/bugwatch:
+  #   endpoint: ${env:BUGWATCH_GRPC}
+  #   tls:
+  #     insecure: true        # set false + configure ca_file behind TLS termination
+  #   headers:
+  #     x-api-key: ${env:BUGWATCH_API_KEY}
+
+  debug:
+    verbosity: basic
+
+service:
+  telemetry:
+    logs:
+      level: info
+  pipelines:
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters: [otlphttp/bugwatch]
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters: [otlphttp/bugwatch]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters: [otlphttp/bugwatch]

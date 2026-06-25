@@ -1,0 +1,17 @@
+# BugWatch OpenTelemetry Collector — run with: docker compose up
+# Point your apps' OTLP exporters at this collector (grpc :4317 / http :4318);
+# it forwards everything to BugWatch.
+services:
+  bugwatch-otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.103.0
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./config.yaml:/etc/otelcol/config.yaml:ro
+    environment:
+      BUGWATCH_HTTP: ${BUGWATCH_HTTP:-https://api.newinstance.cloud}
+      BUGWATCH_GRPC: ${BUGWATCH_GRPC:-api.newinstance.cloud:4317}
+      BUGWATCH_API_KEY: ${BUGWATCH_API_KEY:?set BUGWATCH_API_KEY=keyId:secret}
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+    restart: unless-stopped
