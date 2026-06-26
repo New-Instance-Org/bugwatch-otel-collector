@@ -1,0 +1,67 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bugwatch-otel-collector-config
+  namespace: bugwatch
+  labels:
+    app.kubernetes.io/name: bugwatch-otel-collector
+data:
+  config.yaml: |
+    # BugWatch OpenTelemetry Collector — Kubernetes config
+    # Identical pipeline to docker-compose; env vars injected from Secret.
+
+    extensions:
+      health_check:
+        endpoint: 0.0.0.0:13133
+
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+
+    processors:
+      memory_limiter:
+        check_interval: 1s
+        limit_mib: 512
+        spike_limit_mib: 128
+      batch:
+        send_batch_size: 512
+        timeout: 5s
+      resource:
+        attributes:
+          - key: collector
+            value: bugwatch-otel-collector
+            action: upsert
+
+    exporters:
+      otlphttp/bugwatch:
+        logs_endpoint:    ${env:BUGWATCH_HTTP}/v1/logs
+        traces_endpoint:  ${env:BUGWATCH_HTTP}/v1/traces
+        metrics_endpoint: ${env:BUGWATCH_HTTP}/v1/metrics
+        headers:
+          x-api-key: ${env:BUGWATCH_API_KEY}
+        compression: gzip
+      debug:
+        verbosity: basic
+
+    service:
+      extensions: [health_check]
+      telemetry:
+        logs:
+          level: info
+      pipelines:
+        logs:
+          receivers:  [otlp]
+          processors: [memory_limiter, resource, batch]
+          exporters:  [otlphttp/bugwatch]
+        traces:
+          receivers:  [otlp]
+          processors: [memory_limiter, resource, batch]
+          exporters:  [otlphttp/bugwatch]
+        metrics:
+          receivers:  [otlp]
+          processors: [memory_limiter, resource, batch]
+          exporters:  [otlphttp/bugwatch]

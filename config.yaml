@@ -9,6 +9,10 @@
 #   BUGWATCH_GRPC   e.g. api.newinstance.cloud:4317     (or localhost:4317 in dev)
 #   BUGWATCH_API_KEY  your central key  "<keyId>:<secret>"  (sk_live_… / sk_test_…)
 
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
 receivers:
   otlp:
     protocols:
@@ -54,6 +58,7 @@ exporters:
     verbosity: basic
 
 service:
+  extensions: [health_check]
   telemetry:
     logs:
       level: info

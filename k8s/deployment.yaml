@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bugwatch-otel-collector
+  namespace: bugwatch
+  labels:
+    app.kubernetes.io/name: bugwatch-otel-collector
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: bugwatch-otel-collector
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: bugwatch-otel-collector
+    spec:
+      containers:
+        - name: collector
+          image: otel/opentelemetry-collector-contrib:0.103.0
+          args: ["--config=/etc/otelcol/config.yaml"]
+          ports:
+            - name: otlp-grpc
+              containerPort: 4317
+              protocol: TCP
+            - name: otlp-http
+              containerPort: 4318
+              protocol: TCP
+          env:
+            - name: BUGWATCH_HTTP
+              value: "https://api.newinstance.cloud"
+            - name: BUGWATCH_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: bugwatch-api-key
+                  key: BUGWATCH_API_KEY
+          volumeMounts:
+            - name: config
+              mountPath: /etc/otelcol
+              readOnly: true
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              cpu: "1000m"
+              memory: "768Mi"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 13133   # collector health-check extension (if enabled)
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 13133
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: config
+          configMap:
+            name: bugwatch-otel-collector-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bugwatch-otel-collector
+  namespace: bugwatch
+  labels:
+    app.kubernetes.io/name: bugwatch-otel-collector
+spec:
+  selector:
+    app.kubernetes.io/name: bugwatch-otel-collector
+  ports:
+    - name: otlp-grpc
+      port: 4317
+      targetPort: 4317
+      protocol: TCP
+    - name: otlp-http
+      port: 4318
+      targetPort: 4318
+      protocol: TCP
+  type: ClusterIP
