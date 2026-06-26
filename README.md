@@ -2,6 +2,8 @@
 
 A drop-in OpenTelemetry Collector configuration that forwards your apps' **logs, traces, and metrics** to BugWatch over OTLP. Apps point their OTLP exporter at this collector; the collector forwards to BugWatch's OTLP-compatible ingestion (`/v1/logs`, `/v1/traces`, `/v1/metrics` — HTTP + gRPC).
 
+> **Don't have a BugWatch project yet?** Create one at **[newinstance.cloud](https://www.newinstance.cloud)** and copy your project's central API key (`sk_live_…` / `sk_test_…`) from the dashboard — that's the `BUGWATCH_API_KEY` below.
+
 ## Quick start
 
 ```bash
@@ -50,3 +52,12 @@ Point a Jaeger query/UI at `https://api.newinstance.cloud/jaeger/api` (`/service
 - This distribution is the **upstream `otel/opentelemetry-collector-contrib`** image + the `config.yaml` here — no forked binary. All routing targets are BugWatch endpoints proven live (OTLP logs/traces/metrics ingestion + Prometheus remote-write).
 - To bump the collector version, change the image tag in `docker-compose.yml`.
 - `config.yaml` is standard otelcol config; validate locally with `otelcol-contrib validate --config config.yaml` (requires the binary/Docker, not bundled here).
+
+## Learn more
+
+- **BugWatch / NewInstance:** https://www.newinstance.cloud
+- Once you create a project, its dashboard shows a per-project setup guide with this exact config **pre-filled** (OTLP endpoint + API key already substituted).
+
+## License
+
+[Apache-2.0](./LICENSE).
